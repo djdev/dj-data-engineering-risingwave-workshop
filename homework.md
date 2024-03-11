@@ -5,6 +5,7 @@
 In order to get a static set of results, we will use historical data from the dataset.
 
 Run the following commands:
+
 ```bash
 # Load the cluster op commands.
 source commands.sh
@@ -63,6 +64,7 @@ Create a materialized view to compute the average, min and max trip time **betwe
 
 Note that we consider the do not consider `a->b` and `b->a` as the same trip pair.
 So as an example, you would consider the following trip pairs as different pairs:
+
 ```plaintext
 Yorkville East -> Steinway
 Steinway -> Yorkville East
@@ -75,6 +77,7 @@ Bonus (no marks): Create an MV which can identify anomalies in the data. For exa
 but the max trip time is 10 minutes and 20 minutes respectively.
 
 Options:
+
 1. Yorkville East, Steinway
 2. Murray Hill, Midwood
 3. East Flatbush/Farragut, East Harlem North
@@ -82,15 +85,70 @@ Options:
 
 p.s. The trip time between taxi zones does not take symmetricity into account, i.e. `A -> B` and `B -> A` are considered different trips. This applies to subsequent questions as well.
 
+```sql
+CREATE MATERIALIZED VIEW trip_times AS SELECT
+        AVG(trip_data.tpep_dropoff_datetime - trip_data.tpep_pickup_datetime) as avg_trip_time,
+        MIN(trip_data.tpep_dropoff_datetime - trip_data.tpep_pickup_datetime) as min_trip_time,
+        MAX(trip_data.tpep_dropoff_datetime - trip_data.tpep_pickup_datetime) as max_trip_time,
+        taxi_zone_pu.Zone as pickup_zone,
+        taxi_zone_do.Zone as dropoff_zone,
+        trip_distance
+    FROM
+        trip_data
+    JOIN taxi_zone as taxi_zone_pu
+        ON trip_data.PULocationID = taxi_zone_pu.location_id
+    JOIN taxi_zone as taxi_zone_do
+        ON trip_data.DOLocationID = taxi_zone_do.location_id
+    GROUP BY
+        pickup_zone,
+        dropoff_zone,
+        trip_distance
+    ORDER BY
+        trip_distance DESC;
+
+SELECT
+    MAX(avg_trip_time) AS highest_avg_time,
+    pickup_zone,
+    dropoff_zone
+FROM trip_times
+WHERE pickup_zone != dropoff_zone
+GROUP BY pickup_zone, dropoff_zone
+ORDER BY highest_avg_time DESC;
+```
+
 ## Question 2
 
 Recreate the MV(s) in question 1, to also find the **number of trips** for the pair of taxi zones with the highest average trip time.
 
 Options:
+
 1. 5
 2. 3
 3. 10
 4. 1
+
+```sql
+CREATE MATERIALIZED VIEW trip_details AS SELECT
+        AVG(trip_data.tpep_dropoff_datetime - trip_data.tpep_pickup_datetime) as avg_trip_time,
+        COUNT(*) AS trip_count,
+        taxi_zone_pu.Zone as pickup_zone,
+        taxi_zone_do.Zone as dropoff_zone
+    FROM
+        trip_data
+    JOIN taxi_zone as taxi_zone_pu
+        ON trip_data.PULocationID = taxi_zone_pu.location_id
+    JOIN taxi_zone as taxi_zone_do
+        ON trip_data.DOLocationID = taxi_zone_do.location_id
+    GROUP BY
+        pickup_zone,
+        dropoff_zone
+    ORDER BY
+        avg_trip_time DESC;
+
+
+
+SELECT * FROM trip_details ORDER BY avg_trip_time DESC LIMIT 10;
+```
 
 ## Question 3
 
@@ -104,7 +162,27 @@ to create a filter condition based on the latest pickup time.
 NOTE: For this question `17 hours` was picked to ensure we have enough data to work with.
 
 Options:
+
 1. Clinton East, Upper East Side North, Penn Station
 2. LaGuardia Airport, Lincoln Square East, JFK Airport
 3. Midtown Center, Upper East Side South, Upper East Side North
 4. LaGuardia Airport, Midtown Center, Upper East Side North
+
+```sql
+CREATE MATERIALIZED VIEW top_3_busiest_zones AS SELECT
+    taxi_zone.Zone AS pickup_zone,
+    count(*) AS last_17_hour_pickup_cnt
+FROM
+    trip_data
+JOIN taxi_zone ON trip_data.DOLocationID = taxi_zone.location_id
+WHERE
+    trip_data.tpep_pickup_datetime > (trip_data.tpep_pickup_datetime - INTERVAL '17' HOUR)
+GROUP BY
+    taxi_zone.Zone
+ORDER BY last_17_hour_pickup_cnt DESC
+    LIMIT 10;
+
+
+
+SELECT * FROM top_3_busiest_zones ORDER BY last_17_hour_pickup_cnt DESC LIMIT 10;
+```
