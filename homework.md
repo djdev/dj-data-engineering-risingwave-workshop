@@ -116,6 +116,8 @@ GROUP BY pickup_zone, dropoff_zone
 ORDER BY highest_avg_time DESC;
 ```
 
+# Answer 1. Yorkville East, Steinway
+
 ## Question 2
 
 Recreate the MV(s) in question 1, to also find the **number of trips** for the pair of taxi zones with the highest average trip time.
@@ -149,6 +151,8 @@ CREATE MATERIALIZED VIEW trip_details AS SELECT
 
 SELECT * FROM trip_details ORDER BY avg_trip_time DESC LIMIT 10;
 ```
+
+# Answer 4. 1
 
 ## Question 3
 
@@ -186,3 +190,5 @@ ORDER BY last_17_hour_pickup_cnt DESC
 
 SELECT * FROM top_3_busiest_zones ORDER BY last_17_hour_pickup_cnt DESC LIMIT 10;
 ```
+
+# Answer 1. Clinton East, Upper East Side North, Penn Station
